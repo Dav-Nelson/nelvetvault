@@ -1,8 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Upload, BookOpen, GraduationCap } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Home = () => {
-  return (
+  const [activeLevel, setActiveLevel] = useState('All');
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      setLoading(true);
+      let query = supabase
+        .from('materials')
+        .select('*')
+        .eq('status', 'approved')
+        .order('uploaded_at', { ascending: false });
+
+      if (activeLevel !== 'All') {
+        query = query.eq('level', activeLevel.replace('L', ''));
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching materials:', error);
+      } else {
+        setMaterials(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchMaterials();
+  }, [activeLevel]);
+
     <div className="flex flex-col min-h-screen">
       {/* Navigation */}
       <nav className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
@@ -47,11 +76,12 @@ const Home = () => {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-6 text-primary border-l-4 border-accent pl-3">Browse by Level</h2>
           <div className="flex flex-wrap gap-3">
-            {['All', '200L', '300L', '400L', '500L', '600L'].map((level) => (
+             {['All', '200L', '300L', '400L', '500L', '600L'].map((level) => (
               <button
                 key={level}
+                onClick={() => setActiveLevel(level)}
                 className={`px-6 py-2 rounded-full border-2 transition-all font-semibold ${
-                  level === 'All'
+                  activeLevel === level
                     ? 'bg-primary text-white border-primary shadow-lg scale-105'
                     : 'bg-white text-primary border-gray-200 hover:border-accent hover:text-accent'
                 }`}
@@ -59,6 +89,7 @@ const Home = () => {
                 {level}
               </button>
             ))}
+
           </div>
         </section>
 
@@ -69,30 +100,36 @@ const Home = () => {
             <button className="text-primary hover:text-accent font-semibold transition-colors">View All →</button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Placeholder Cards */}
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100 overflow-hidden group">
-                <div className="h-2 bg-accent"></div>
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="bg-gray-100 text-primary text-xs font-bold px-2 py-1 rounded">VPH 404</span>
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">Past Question</span>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loading ? (
+              <div className="col-span-full text-center py-12 text-gray-500">Loading materials...</div>
+            ) : materials.length > 0 ? (
+              materials.map((material) => (
+                <div key={material.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100 overflow-hidden group">
+                  <div className="h-2 bg-accent"></div>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="bg-gray-100 text-primary text-xs font-bold px-2 py-1 rounded">{material.course_code}</span>
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">{material.type === 'past_question' ? 'Past Question' : 'Study Material'}</span>
+                    </div>
+                    <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors">
+                      {material.title}
+                    </h3>
+                    <div className="flex items-center text-sm text-gray-500 mb-4">
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      <span>{material.year} | {material.level}00 Level</span>
+                    </div>
+                    <a href={`/material/${material.id}`} className="w-full bg-gray-50 hover:bg-primary hover:text-white text-primary font-bold py-2 rounded-lg transition-all border border-gray-200 flex justify-center items-center">
+                      View Details
+                    </a>
                   </div>
-                  <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors">
-                    Veterinary Public Health & Preventive Medicine I
-                  </h3>
-                  <div className="flex items-center text-sm text-gray-500 mb-4">
-                    <BookOpen className="h-4 w-4 mr-1" />
-                    <span>2023 | 400 Level</span>
-                  </div>
-                  <button className="w-full bg-gray-50 hover:bg-primary hover:text-white text-primary font-bold py-2 rounded-lg transition-all border border-gray-200 flex justify-center items-center">
-                    Download PDF
-                  </button>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12 text-gray-500">No materials found for this level.</div>
+            )}
           </div>
+
         </section>
 
         {/* Upload CTA Section */}
